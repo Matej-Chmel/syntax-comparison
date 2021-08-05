@@ -57,6 +57,10 @@ def runCpp(caller: Path, out: Path, rebuild: bool):
 
 	callProg([outFile])
 
+@run("py")
+def runPython(caller: Path, *_):
+	callProg([pythonCmd(), caller])
+
 def main():
 	try:
 		caller = callerPath()
