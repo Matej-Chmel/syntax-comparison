@@ -1,3 +1,4 @@
+from json import dump
 from pathlib import Path
 from sys import argv, exit
 from typing import Callable
@@ -19,12 +20,19 @@ def fopen(p: Path, mode: str = "w"):
 def genLangTree(progName: str, snipDir: Path, template: Path):
 	ext = template.suffix.lower().replace(".", "")
 	langDir = snipDir / template.parent.name
+
+	genMetadata(snipDir)
 	langDir.mkdir()
 
 	with fopen(langDir / "README.md") as f:
 		f.write(mdShort(ext))
 	with fopen(langDir / f'{progName}.{ext}') as f, fopen(template, "r") as t:
 		f.write(t.read())
+
+def genMetadata(snipDir: Path):
+	with fopen(snipDir / "metadata.json") as f:
+		dump({"aliases": []}, f, indent=4, sort_keys=True)
+		f.write("\n")
 
 def mdShort(ext: str):
 	try:
