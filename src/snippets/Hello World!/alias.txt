@@ -1,4 +1,0 @@
-Display text
-Output text to console
-Show string
-Stdout

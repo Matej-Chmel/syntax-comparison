@@ -4,6 +4,12 @@ from subprocess import call
 from sys import argv, exit
 from typing import Callable
 
+def buildNeeded(caller: Path, outFile: Path, rebuild: bool):
+	return (
+		rebuild or
+		not outFile.exists() or
+		outFile.stat().st_mtime < caller.stat().st_mtime)
+
 def callerPath():
 	try:
 		return Path(argv[1]).absolute()
@@ -13,10 +19,10 @@ def callerPath():
 def callProg(args: list, **kwargs):
 	return call(map(str, args), **kwargs)
 
-def checkCompiled(exeFile: Path):
-	if not exeFile.exists():
+def checkBuild(outFile: Path):
+	if not outFile.exists():
 		raise RuntimeError(
-			f"Compilation failed, {exeFile.name} wasn't created.")
+			f"Compilation failed, {outFile.name} wasn't created.")
 
 def outDirPath():
 	return Path(__file__).parent / "out"
@@ -24,7 +30,13 @@ def outDirPath():
 def pythonCmd():
 	return "python" if system().lower().startswith("linux") else "py"
 
-RunFunc = Callable[[Path, Path], None]
+def rebuildOpt():
+	try:
+		return argv[2].lower() == "true"
+	except IndexError:
+		return False
+
+RunFunc = Callable[[Path, Path, bool], None]
 runners: dict[str, RunFunc] = {}
 
 def run(ext: str):
@@ -34,13 +46,16 @@ def run(ext: str):
 	return decorator
 
 @run("cpp")
-def runCpp(caller: Path, out: Path):
-	exeFile = out / f"{caller.stem}.exe"
-	exeFile.unlink(missing_ok=True)
-	srcFiles = caller.parent / "*.cpp"
-	callProg(["g++", "-std=c++17", "-g", srcFiles, "-o", exeFile])
-	checkCompiled(exeFile)
-	callProg([exeFile])
+def runCpp(caller: Path, out: Path, rebuild: bool):
+	outFile = out / f"{caller.stem}.exe"
+
+	if buildNeeded(caller, outFile, rebuild):
+		outFile.unlink(missing_ok=True)
+		srcFiles = caller.parent / "*.cpp"
+		callProg(["g++", "-std=c++17", "-g", srcFiles, "-o", outFile])
+		checkBuild(outFile)
+
+	callProg([outFile])
 
 def main():
 	try:
@@ -48,7 +63,8 @@ def main():
 		ext = caller.suffix.replace(".", "").lower()
 		out = outDirPath()
 		out.mkdir(exist_ok=True)
-		runners[ext](caller, out)
+		rebuild = rebuildOpt()
+		runners[ext](caller, out, rebuild)
 
 	except KeyError as e:
 		print(f"Unsupported extension: {e.args[0]}")

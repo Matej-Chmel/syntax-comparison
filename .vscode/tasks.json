@@ -26,6 +26,26 @@
 			"type": "shell"
 		},
 		{
+			"label": "Rebuild & Run",
+			"linux": {
+				"command": "python"
+			},
+			"osx": {
+				"command": "python"
+			},
+			"windows": {
+				"command": "py"
+			},
+			"args": [
+				"src/run.py",
+				"${file}",
+				"true"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"type": "shell"
+		},
+		{
 			"label": "Run",
 			"linux": {
 				"command": "python"
