@@ -26,6 +26,24 @@
 			"type": "shell"
 		},
 		{
+			"label": "Generate tree for new snippet",
+			"linux": {
+				"command": "python"
+			},
+			"osx": {
+				"command": "python"
+			},
+			"windows": {
+				"command": "py"
+			},
+			"args": [
+				"src/genTree.py",
+				"${input:snippetName}"
+			],
+			"problemMatcher": [],
+			"type": "shell"
+		},
+		{
 			"label": "Rebuild & Run",
 			"linux": {
 				"command": "python"
@@ -66,6 +84,13 @@
 			},
 			"problemMatcher": [],
 			"type": "shell"
+		}
+	],
+	"inputs": [
+		{
+			"id": "snippetName",
+			"description": "Enter name for new snippet.",
+			"type": "promptString"
 		}
 	]
 }
