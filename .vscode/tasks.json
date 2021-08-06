@@ -26,6 +26,25 @@
 			"type": "shell"
 		},
 		{
+			"label": "Complete tree",
+			"linux": {
+				"command": "python"
+			},
+			"osx": {
+				"command": "python"
+			},
+			"windows": {
+				"command": "py"
+			},
+			"args": [
+				"src/genTree.py",
+				"--complete",
+				"${file}"
+			],
+			"problemMatcher": [],
+			"type": "shell"
+		},
+		{
 			"label": "Generate tree for new snippet",
 			"linux": {
 				"command": "python"
@@ -38,6 +57,7 @@
 			},
 			"args": [
 				"src/genTree.py",
+				"--gen",
 				"${input:snippetName}"
 			],
 			"problemMatcher": [],
@@ -57,7 +77,7 @@
 			"args": [
 				"src/run.py",
 				"${file}",
-				"true"
+				"--rebuild"
 			],
 			"group": "build",
 			"problemMatcher": [],
