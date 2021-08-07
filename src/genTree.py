@@ -18,6 +18,13 @@ def addCompleteArg(parser: ArgumentParser):
 		"-g", "--gen", action="store_false", help="Generate folder structure "
 		f"for new snippet. {mutExHelp('complete')}")
 
+def alnumOnly(s: str):
+	res = "".join(filter(str.isalnum, s))
+
+	if not res:
+		raise AppError(f"{s} doesn't contain any alphanumeric characters.")
+	return res
+
 def args():
 	parser = ArgumentParser(
 		prog="GEN_TREE",
@@ -32,7 +39,7 @@ def args():
 	res = parser.parse_args()
 
 	if res.complete:
-		return True, Path(res.nameOrPath).absolute()
+		return True, Path(res.nameOrPath.rstrip('"')).absolute()
 	return False, str(res.nameOrPath)
 
 def camelCase(split: list[str]):
@@ -77,6 +84,7 @@ def mdShort(ext: str):
 	return f"```{highlight}{NEWLINE * 2}```{NEWLINE}"
 
 mdSyntaxHighlight = {
+	"kt": "kotlin",
 	"py": "python"
 }
 
@@ -98,13 +106,12 @@ def snipDir(name: str, src: Path):
 	return snippetsDir(src) / name
 
 def snipDirFromPath(p: Path, src: Path):
-	snippets = snippetsDir(src)
-
-	if not p.is_relative_to(snippets):
+	try:
+		snippets = snippetsDir(src)
+		return snippets / p.relative_to(snippets).parts[0]
+	except ValueError:
 		raise AppError(
 			f"\"{p.name}\" doesn't reside inside a snippet directory.")
-
-	return snippets / p.relative_to(snippets).parts[0]
 
 def snippetsDir(src: Path):
 	return src / "snippets"
@@ -131,6 +138,8 @@ def main():
 			snip = snipDir(capitalize(snipNameSplit), src)
 			progName = camelCase(snipNameSplit)
 			safeMkdir(snip)
+
+		progName = alnumOnly(progName)
 
 		try:
 			genMetadata(snip)
