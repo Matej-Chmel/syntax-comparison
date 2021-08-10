@@ -73,7 +73,7 @@ def genMetadata(snipDir: Path):
 		raise AppError(f"Metadata for \"{snipDir.name}\" already exist.")
 
 	with fopen(p) as f:
-		dump({"aliases": []}, f, indent=4, sort_keys=True)
+		dump({"aliases": [""]}, f, indent=4, sort_keys=True)
 		f.write("\n")
 
 def mdShort(ext: str):
