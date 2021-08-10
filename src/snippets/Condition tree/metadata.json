@@ -1,9 +1,10 @@
 {
 	"aliases": [
 		"Branch",
-		"Condition",
 		"Elif",
 		"Else",
-		"Else if"
+		"Else if",
+		"If",
+		"When"
 	]
 }
