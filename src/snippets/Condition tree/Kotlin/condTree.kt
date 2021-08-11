@@ -1,6 +1,6 @@
 fun main() {
-	var a = (1 until 5).random()
-	var b = (1 until 5).random()
+	var a = (1..4).random()
+	var b = (1..4).random()
 	lateinit var msg: String
 	println("a = $a, b = $b")
 

@@ -1,4 +1,4 @@
-const rndNum = () => Math.floor(Math.random() * 5 + 1);
+const rndNum = () => Math.floor(Math.random()*4 + 1);
 
 function main() {
 	let a = rndNum();

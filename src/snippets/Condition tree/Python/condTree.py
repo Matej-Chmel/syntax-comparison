@@ -1,8 +1,8 @@
 from random import randint
 
 def main():
-	a = randint(1, 5)
-	b = randint(1, 5)
+	a = randint(1, 4)
+	b = randint(1, 4)
 	print(f"{a = }, {b = }")
 
 	if a > b:
