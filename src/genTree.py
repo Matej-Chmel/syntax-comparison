@@ -65,23 +65,39 @@ def genLangTree(progName: str, snipDir: Path, template: Path):
 		f.write(mdShort(ext))
 	with fopen(langDir / f"{progName}.{ext}") as f, fopen(template, "r") as t:
 		f.write(t.read())
+	printGenSuccess(langDir, "tree")
 
 def genMetadata(snipDir: Path):
-	p = snipDir / "metadata.json"
-
-	if p.exists():
-		raise AppError(f"Metadata for \"{snipDir.name}\" already exist.")
-
-	with fopen(p) as f:
+	with safeFOpen(snipDir / "metadata.json") as f:
 		dump({"aliases": [""]}, f, indent=4, sort_keys=True)
 		f.write("\n")
+	printGenSuccess(snipDir, "metadata", True)
+
+def genSnipReadme(snipDir: Path):
+	with safeFOpen(snipDir / "README.md") as f:
+		f.write(f"# {snipDir.name}{NL}")
+	printGenSuccess(snipDir, "README", True)
+
+def initSnipDirAndProgNameFromArgs():
+	complete, nameOrPath = args()
+	src = srcDir()
+
+	if complete:
+		snip = snipDirFromPath(nameOrPath, src)
+		progName = camelCase(snip.name.split())
+	else:
+		snipNameSplit = nameOrPath.split()
+		snip = snipDir(capitalize(snipNameSplit), src)
+		progName = camelCase(snipNameSplit)
+		safeMkdir(snip)
+	return alnumOnly(progName), snip, src
 
 def mdShort(ext: str):
 	try:
 		highlight = mdSyntaxHighlight[ext]
 	except KeyError:
 		highlight = ext
-	return f"```{highlight}{NEWLINE * 2}```{NEWLINE}"
+	return f"```{highlight}{NL * 2}```{NL}"
 
 mdSyntaxHighlight = {
 	"kt": "kotlin",
@@ -91,7 +107,11 @@ mdSyntaxHighlight = {
 def mutExHelp(otherArg: str):
 	return f"Cannot be used with --{otherArg} argument."
 
-NEWLINE = "\n"
+NL = "\n"
+
+def printGenSuccess(d: Path, itemName: str, quoted: bool = False):
+	dirName = f"\"{d.name}\"" if quoted else d.name
+	print(f"Generated {itemName} for {dirName}.")
 
 def safeMkdir(p: Path):
 	try:
@@ -101,6 +121,12 @@ def safeMkdir(p: Path):
 		for _ in p.iterdir():
 			raise AppError(
 				f"\"{p.name}\" directory already exists and isn't empty.")
+
+def safeFOpen(p: Path):
+	if p.exists():
+		raise AppError(
+			f"{p.stem.capitalize()} for \"{p.parent.name}\" already exists.")
+	return fopen(p)
 
 def snipDir(name: str, src: Path):
 	return snippetsDir(src) / name
@@ -125,34 +151,20 @@ def templateDir(src: Path):
 def templateFiles(templateDir: Path):
 	return templateDir.rglob("template.*")
 
+def tryCall(f, *args):
+	try:
+		f(*args)
+	except AppError as e:
+		print(e)
+
 def main():
 	try:
-		complete, nameOrPath = args()
-		src = srcDir()
-
-		if complete:
-			snip = snipDirFromPath(nameOrPath, src)
-			progName = camelCase(snip.name.split())
-		else:
-			snipNameSplit = nameOrPath.split()
-			snip = snipDir(capitalize(snipNameSplit), src)
-			progName = camelCase(snipNameSplit)
-			safeMkdir(snip)
-
-		progName = alnumOnly(progName)
-
-		try:
-			genMetadata(snip)
-			print(f"Generated metadata for \"{snip.name}\".")
-		except AppError as e:
-			print(e)
+		progName, snip, src = initSnipDirAndProgNameFromArgs()
+		tryCall(genMetadata, snip)
+		tryCall(genSnipReadme, snip)
 
 		for t in templateFiles(templateDir(src)):
-			try:
-				genLangTree(progName, snip, t)
-				print(f"Generated tree for {t.parent.name}.")
-			except AppError as e:
-				print(e)
+			tryCall(genLangTree, progName, snip, t)
 
 	except AppError as e:
 		print(e)
