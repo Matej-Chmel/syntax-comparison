@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 from dataclasses import dataclass
 from pathlib import Path
 from platform import system
-from subprocess import call
+from subprocess import call, check_output
 from sys import exit
 from typing import Callable, Iterable
 
@@ -23,17 +23,39 @@ def args():
 		"-r", "--rebuild", action="store_true",
 		help="Force recompilation of the program. "
 		"Doesn't have any effect for interpreted languages without cache.")
+	parser.add_argument(
+		"-t", "--test", action="store_true",
+		help="Compare standard output of the program with the expected output "
+		f"in {EXP_OUT} from its snippet directory.")
 	res = parser.parse_args()
 
-	return Path(res.path.rstrip('"')).absolute(), res.rebuild
+	return Path(res.path.rstrip('"')).absolute(), res.rebuild, res.test
 
-def callProg(*args, cwd: Path = None):
-	return call(map(str, args), cwd=cwd, shell=cwd is not None)
+def compare(
+	actual: str, expected: str, lineIdx: int = None, itemName: str = None
+):
+	if actual == expected:
+		return
+
+	itemStr = "" if itemName is None else f" {itemName}"
+	lineStr = "" if lineIdx is None else f"Line: {lineIdx+1}{NL}"
+
+	raise AppError(
+		f"""TEST FAILED
+{lineStr}{"Actual:":<10}{actual}{itemStr}
+{"Expected:":<10}{expected}{itemStr}
+{"Repr actual:":<15}{repr(actual)}
+{"Repr expected:":<15}{repr(expected)}
+""")
+
+EXP_OUT = "expOut.txt"
+NL = "\n"
 
 @dataclass
 class RunnerArgs:
 	caller: Path
 	rebuild: bool
+	test: bool
 
 	def __call__(self):
 		try:
@@ -51,18 +73,19 @@ class RunnerArgs:
 		self.outDir.mkdir(exist_ok=True)
 		self.initLangDir(src)
 
-	def buildAndCheck(self, args: Iterable):
+	def _callProg(self, args: Iterable, func: Callable):
+		return func(map(str, args), cwd=self.cwd, shell=self.cwd is not None)
+
+	def build(self, *args):
+		if not self.buildNeeded():
+			return
+
 		self.outFile.unlink(missing_ok=True)
 		self.callProg(args)
 
 		if not self.outFile.exists():
 			raise AppError(
 				f"Compilation failed, {self.outFile.name} wasn't created.")
-
-	def buildAndRun(self, buildArgs: Iterable, runArgs: Iterable):
-		if self.buildNeeded():
-			self.buildAndCheck(buildArgs)
-		self.callProg(runArgs)
 
 	def buildNeeded(self):
 		if self.rebuild or not self.outFile.exists():
@@ -71,8 +94,12 @@ class RunnerArgs:
 		outMtime = self.outFile.stat().st_mtime
 		return any(f.stat().st_mtime > outMtime for f in self.srcFiles)
 
-	def callProg(self, args: Iterable):
-		return callProg(*args, cwd=self.cwd)
+	def callProg(self, args: Iterable) -> int:
+		return self._callProg(args, call)
+
+	def checkOutput(self, args: Iterable) -> str:
+		return self._callProg(args, check_output).decode("utf-8").replace(
+			"\r", "").rstrip("\n")
 
 	def initCompiledLang(self, langExt: str, outExt: str):
 		self.srcFiles = list(self.langDir.rglob(f"*.{langExt}"))
@@ -95,8 +122,31 @@ class RunnerArgs:
 			raise AppError(f"\"{self.caller}\" is not part of a language tree.")
 
 	def relSrcFiles(self):
-		for f in self.srcFiles:
-			yield f.relative_to(self.cwd)
+		return (f.relative_to(self.cwd) for f in self.srcFiles)
+
+	def run(self, *args):
+		if self.test:
+			expOut = self.langDir.parent / EXP_OUT
+
+			if not expOut.exists():
+				raise AppError(
+					f"{EXP_OUT} for \"{self.langDir.parent}\" doesn't exist.")
+			self.runTest(args, expOut)
+		else:
+			self.callProg(args)
+
+	def runTest(self, args: Iterable, expOut: Path):
+		with expOut.open("r", encoding="utf-8") as f:
+			actualLines = self.checkOutput(args).split("\n")
+			expectedLines = f.readlines()
+
+			for i, (actual, expected) in enumerate(zip(
+				actualLines, expectedLines)
+			):
+				compare(actual, expected.rstrip("\n"), i)
+
+			compare(len(actualLines), len(expectedLines), itemName="lines")
+			print("TEST PASSED")
 
 Runner = Callable[[RunnerArgs], None]
 runners: dict[str, Runner] = {}
@@ -110,27 +160,25 @@ def run(lang: str):
 @run("c++")
 def runCpp(args: RunnerArgs):
 	args.initCompiledLang("cpp", "exe")
-	args.buildAndRun(
-		["g++", "-std=c++17", "-g", *args.srcFiles, "-o", args.outFile],
-		[args.outFile])
+	args.build("g++", "-std=c++17", "-g", *args.srcFiles, "-o", args.outFile)
+	args.run(args.outFile)
 
 @run("javascript")
 def runJS(args: RunnerArgs):
-	callProg("node", args.caller)
+	args.run("node", args.caller)
 
 @run("kotlin")
 def runKT(args: RunnerArgs):
 	args.initCompiledLang("kt", "jar")
 	args.cwd = args.langDir
-	args.buildAndRun(
-		["kotlinc", *args.relSrcFiles(), "-include-runtime", "-d",
-		args.outFile], ["java", "-jar", args.outFile])
+	args.build(
+		"kotlinc", *args.relSrcFiles(), "-include-runtime", "-d", args.outFile)
+	args.run("java", "-jar", args.outFile)
 
 @run("python")
 def runPy(args: RunnerArgs):
-	callProg(
-		"python" if system().lower().startswith("linux") else "py",
-		args.caller)
+	args.run(
+		"python" if system().lower().startswith("linux") else "py", args.caller)
 
 def main():
 	try:

@@ -1,10 +1,6 @@
-const rndNum = () => Math.floor(Math.random()*4 + 1);
-
-function main() {
-	let a = rndNum();
-	let b = rndNum();
+function compare(a, b) {
 	let msg;
-	console.log(`a = ${a}, b = ${b}`);
+	print(a, b);
 
 	if(a > b) {
 		msg = "a > b";
@@ -17,7 +13,18 @@ function main() {
 		a++;
 		b++;
 	}
-	console.log(`${msg}\na = ${a}, b = ${b}`);
+	console.log(msg);
+	print(a, b);
+	console.log();
+}
+function print(a, b) {
+	console.log(`a = ${a}, b = ${b}`);
+}
+
+function main() {
+	for(let a = 1; a <= 3; a++)
+		for(let b = 1; b <= 3; b++)
+			compare(a, b);
 }
 
 main()

@@ -1,8 +1,5 @@
-const rndNum = () => Math.floor(Math.random()*8 + 1);
-
-function main() {
+function printDay(n) {
 	let msg;
-	let n = rndNum();
 
 	switch(n) {
 	case 1:
@@ -30,6 +27,11 @@ function main() {
 		msg = "Invalid day";
 	}
 	console.log(`${n}: ${msg}`);
+}
+
+function main() {
+	for(let i = 0; i <=8; i++)
+		printDay(i);
 }
 
 main()

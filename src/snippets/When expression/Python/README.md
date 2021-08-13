@@ -7,8 +7,7 @@ try:
 		4: "Thursday",
 		5: "Friday",
 		6: "Saturday",
-		7: "Sunday"
-	}[n]
+		7: "Sunday"}[n]
 except KeyError:
 	msg = "Invalid day"
 ```

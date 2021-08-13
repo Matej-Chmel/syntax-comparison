@@ -1,8 +1,8 @@
-fun main() {
-	var a = (1..4).random()
-	var b = (1..4).random()
+fun compare(_a: Int, _b: Int) {
+	var a = _a
+	var b = _b
 	lateinit var msg: String
-	println("a = $a, b = $b")
+	printNums(a, b)
 
 	when {
 		a > b -> {
@@ -19,5 +19,16 @@ fun main() {
 			b++
 		}
 	}
-	println("$msg\na = $a, b = $b")
+	println(msg)
+	printNums(a, b)
+	println()
+}
+fun printNums(a: Int, b: Int) = println("a = $a, b = $b")
+
+fun main() {
+	(1..3).forEach { a ->
+		(1..3).forEach { b ->
+			compare(a, b)
+		}
+	}
 }

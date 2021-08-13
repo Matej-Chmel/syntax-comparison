@@ -3,7 +3,7 @@ from json import dump
 from functools import partial
 from pathlib import Path
 from sys import exit
-from typing import Callable
+from typing import Callable, IO
 
 class AppError(Exception):
 	def __init__(self, msg: str):
@@ -56,6 +56,17 @@ def fmtNotUpper(s: str, effect: Callable[[str], str]):
 def fopen(p: Path, mode: str = "w"):
 	return p.open(mode, encoding="utf-8")
 
+def genFile(d: Path, name: str, effect: Callable[[IO], None] = None):
+	path = d / name
+
+	with safeFOpen(path) as f:
+		try:
+			effect(f)
+		except TypeError:
+			pass
+		f.write("\n")
+	printGenSuccess(d, path.stem, True)
+
 def genLangTree(progName: str, snipDir: Path, template: Path):
 	langDir = snipDir / template.parent.name
 	safeMkdir(langDir)
@@ -68,15 +79,14 @@ def genLangTree(progName: str, snipDir: Path, template: Path):
 	printGenSuccess(langDir, "tree")
 
 def genMetadata(snipDir: Path):
-	with safeFOpen(snipDir / "metadata.json") as f:
-		dump({"aliases": [""]}, f, indent=4, sort_keys=True)
-		f.write("\n")
-	printGenSuccess(snipDir, "metadata", True)
+	genFile(
+		snipDir, "metadata.json",
+		lambda f: dump({"aliases": [""]}, f, indent=4, sort_keys=True))
 
 def genSnipReadme(snipDir: Path):
-	with safeFOpen(snipDir / "README.md") as f:
-		f.write(f"# {snipDir.name}{NL}")
-	printGenSuccess(snipDir, "README", True)
+	genFile(
+		snipDir, "README.md",
+		lambda f: f.write(f"# {snipDir.name}{NL}"))
 
 def initSnipDirAndProgNameFromArgs():
 	complete, nameOrPath = args()
@@ -101,8 +111,7 @@ def mdShort(ext: str):
 
 mdSyntaxHighlight = {
 	"kt": "kotlin",
-	"py": "python"
-}
+	"py": "python"}
 
 def mutExHelp(otherArg: str):
 	return f"Cannot be used with --{otherArg} argument."
@@ -125,7 +134,8 @@ def safeMkdir(p: Path):
 def safeFOpen(p: Path):
 	if p.exists():
 		raise AppError(
-			f"{p.stem.capitalize()} for \"{p.parent.name}\" already exists.")
+			f"{p.stem[0].upper() + p.stem[1:]} for \"{p.parent.name}\" "
+			"already exists.")
 	return fopen(p)
 
 def snipDir(name: str, src: Path):
@@ -160,6 +170,7 @@ def tryCall(f, *args):
 def main():
 	try:
 		progName, snip, src = initSnipDirAndProgNameFromArgs()
+		tryCall(genFile, snip, "expOut.txt")
 		tryCall(genMetadata, snip)
 		tryCall(genSnipReadme, snip)
 

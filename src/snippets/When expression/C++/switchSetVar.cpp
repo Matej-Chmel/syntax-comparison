@@ -1,16 +1,8 @@
 #include <iostream>
-#include <random>
 #include <string>
 
-auto rndNum() {
-	std::mt19937 gen(std::random_device{}());
-	std::uniform_int_distribution dis(1, 9);
-	return dis(gen);
-}
-
-int main() {
+void printDay(const int n) {
 	std::string msg;
-	auto n = rndNum();
 
 	switch(n) {
 	case 1:
@@ -37,7 +29,11 @@ int main() {
 	default:
 		msg = "Invalid day";
 	}
-
 	std::cout << n << ": " << msg << '\n';
+}
+
+int main() {
+	for(int i = 0; i <= 8; i++)
+		printDay(i);
 	return 0;
 }

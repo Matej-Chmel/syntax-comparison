@@ -1,8 +1,5 @@
-fun main() {
-	lateinit var msg: String
-	val n = (1..8).random()
-
-	msg = when (n) {
+fun printDay(n: Int) {
+	val msg = when (n) {
 		1 -> "Monday"
 		2 -> "Tuesday"
 		3 -> "Wednesday"
@@ -12,6 +9,9 @@ fun main() {
 		7 -> "Sunday"
 		else -> "Invalid day"
 	}
-
 	println("$n: $msg")
+}
+
+fun main() {
+	(0..8).forEach(::printDay)
 }

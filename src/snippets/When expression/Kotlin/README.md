@@ -1,5 +1,5 @@
 ```kotlin
-msg = when (n) {
+val msg = when (n) {
 	1 -> "Monday"
 	2 -> "Tuesday"
 	3 -> "Wednesday"

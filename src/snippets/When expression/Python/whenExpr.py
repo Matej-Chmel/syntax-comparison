@@ -1,8 +1,4 @@
-from random import randint
-
-def main():
-	n = randint(1, 8)
-
+def printDay(n: int):
 	try:
 		msg = {
 			1: "Monday",
@@ -11,12 +7,15 @@ def main():
 			4: "Thursday",
 			5: "Friday",
 			6: "Saturday",
-			7: "Sunday"
-		}[n]
+			7: "Sunday"}[n]
 	except KeyError:
 		msg = "Invalid day"
 
 	print(f"{n}: {msg}")
+
+def main():
+	for i in range(0, 9):
+		printDay(i)
 
 if __name__ == "__main__":
 	main()
