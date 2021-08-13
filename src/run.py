@@ -72,6 +72,7 @@ class RunnerArgs:
 		self.outDir = src / "out"
 		self.outDir.mkdir(exist_ok=True)
 		self.initLangDir(src)
+		self.initImplDir()
 
 	def _callProg(self, args: Iterable, func: Callable):
 		return func(map(str, args), cwd=self.cwd, shell=self.cwd is not None)
@@ -94,6 +95,9 @@ class RunnerArgs:
 		outMtime = self.outFile.stat().st_mtime
 		return any(f.stat().st_mtime > outMtime for f in self.srcFiles)
 
+	def callerRelParts(self, d: Path):
+		return self.caller.relative_to(d).parts
+
 	def callProg(self, args: Iterable) -> int:
 		return self._callProg(args, call)
 
@@ -102,17 +106,17 @@ class RunnerArgs:
 			"\r", "").rstrip("\n")
 
 	def initCompiledLang(self, langExt: str, outExt: str):
-		self.srcFiles = list(self.langDir.rglob(f"*.{langExt}"))
+		self.srcFiles = list(self.implDir.rglob(f"*.{langExt}"))
 
 		try:
 			self.outFile = self.outDir / f"{self.srcFiles[0].stem}.{outExt}"
 		except IndexError:
-			raise AppError(f"No source files in \"{self.langDir}\".")
+			raise AppError(f"No source files in \"{self.implDir}\".")
 
 	def initLangDir(self, src: Path):
 		try:
 			snippets = src / "snippets"
-			relParts = self.caller.relative_to(snippets).parts
+			relParts = self.callerRelParts(snippets)
 			self.langDir = snippets / Path(*relParts[:2])
 
 			if len(relParts) < 2 or not self.langDir.is_dir():
@@ -120,6 +124,17 @@ class RunnerArgs:
 
 		except ValueError:
 			raise AppError(f"\"{self.caller}\" is not part of a language tree.")
+
+	def initImplDir(self):
+		try:
+			nextDir = self.langDir / Path(self.callerRelParts(self.langDir)[0])
+
+			if nextDir.is_dir():
+				self.implDir = nextDir
+				return
+		except IndexError:
+			pass
+		self.implDir = self.langDir
 
 	def relSrcFiles(self):
 		return (f.relative_to(self.cwd) for f in self.srcFiles)
@@ -170,7 +185,7 @@ def runJS(args: RunnerArgs):
 @run("kotlin")
 def runKT(args: RunnerArgs):
 	args.initCompiledLang("kt", "jar")
-	args.cwd = args.langDir
+	args.cwd = args.implDir
 	args.build(
 		"kotlinc", *args.relSrcFiles(), "-include-runtime", "-d", args.outFile)
 	args.run("java", "-jar", args.outFile)
