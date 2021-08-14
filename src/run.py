@@ -114,7 +114,7 @@ class RunnerArgs:
 				return nextDir
 		except IndexError:
 			pass
-		return self.langDir
+		return self.langDirIfSingleImpl()
 
 	def initCompiledLang(self, langExt: str, outExt: str):
 		self.srcFiles = list(self.implDir.rglob(f"*.{langExt}"))
@@ -135,6 +135,15 @@ class RunnerArgs:
 
 		except ValueError:
 			raise AppError(f"\"{self.caller}\" is not part of a language tree.")
+
+	def langDirIfSingleImpl(self):
+		try:
+			next(d for d in self.langDir.iterdir() if d.is_dir())
+			raise AppError(
+				f"Multiple implementations exist for {self.langDir.name} "
+				"but none was chosen.")
+		except StopIteration:
+			return self.langDir
 
 	def mainFile(self, ext: str):
 		if self.caller.suffix.replace(".", "") == ext:
