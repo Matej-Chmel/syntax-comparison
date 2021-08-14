@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from platform import system
 from subprocess import call, check_output
@@ -72,7 +73,6 @@ class RunnerArgs:
 		self.outDir = src / "out"
 		self.outDir.mkdir(exist_ok=True)
 		self.initLangDir(src)
-		self.initImplDir()
 
 	def _callProg(self, args: Iterable, func: Callable):
 		return func(map(str, args), cwd=self.cwd, shell=self.cwd is not None)
@@ -105,6 +105,17 @@ class RunnerArgs:
 		return self._callProg(args, check_output).decode("utf-8").replace(
 			"\r", "").rstrip("\n")
 
+	@cached_property
+	def implDir(self):
+		try:
+			nextDir = self.langDir / Path(self.callerRelParts(self.langDir)[0])
+
+			if nextDir.is_dir():
+				return nextDir
+		except IndexError:
+			pass
+		return self.langDir
+
 	def initCompiledLang(self, langExt: str, outExt: str):
 		self.srcFiles = list(self.implDir.rglob(f"*.{langExt}"))
 
@@ -125,16 +136,15 @@ class RunnerArgs:
 		except ValueError:
 			raise AppError(f"\"{self.caller}\" is not part of a language tree.")
 
-	def initImplDir(self):
-		try:
-			nextDir = self.langDir / Path(self.callerRelParts(self.langDir)[0])
+	def mainFile(self, ext: str):
+		if self.caller.suffix.replace(".", "") == ext:
+			return self.caller
 
-			if nextDir.is_dir():
-				self.implDir = nextDir
-				return
-		except IndexError:
-			pass
-		self.implDir = self.langDir
+		try:
+			return next(self.implDir.glob(f"*.{ext}"))
+		except StopIteration:
+			raise AppError(
+				f"No file with extension \"{ext}\" in \"{self.implDir}\".")
 
 	def relSrcFiles(self):
 		return (f.relative_to(self.cwd) for f in self.srcFiles)
@@ -180,7 +190,7 @@ def runCpp(args: RunnerArgs):
 
 @run("javascript")
 def runJS(args: RunnerArgs):
-	args.run("node", args.caller)
+	args.run("node", args.mainFile("js"))
 
 @run("kotlin")
 def runKT(args: RunnerArgs):
@@ -193,7 +203,8 @@ def runKT(args: RunnerArgs):
 @run("python")
 def runPy(args: RunnerArgs):
 	args.run(
-		"python" if system().lower().startswith("linux") else "py", args.caller)
+		"python" if system().lower().startswith("linux") else "py",
+		args.mainFile("py"))
 
 def main():
 	try:
