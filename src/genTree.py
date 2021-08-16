@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-from json import dump
 from functools import partial
 from pathlib import Path
 from sys import exit
@@ -56,7 +55,10 @@ def fmtNotUpper(s: str, effect: Callable[[str], str]):
 def fopen(p: Path, mode: str = "w"):
 	return p.open(mode, encoding="utf-8")
 
-def genFile(d: Path, name: str, effect: Callable[[IO], None] = None):
+def genFile(
+	d: Path, name: str,
+	effect: Callable[[IO], None] = None, writeNL: bool = True
+):
 	path = d / name
 
 	with safeFOpen(path) as f:
@@ -64,7 +66,8 @@ def genFile(d: Path, name: str, effect: Callable[[IO], None] = None):
 			effect(f)
 		except TypeError:
 			pass
-		f.write("\n")
+		if writeNL:
+			f.write(NL)
 	printGenSuccess(d, path.stem, True)
 
 def genLangTree(progName: str, snipDir: Path, template: Path):
@@ -78,29 +81,17 @@ def genLangTree(progName: str, snipDir: Path, template: Path):
 		f.write(t.read())
 	printGenSuccess(langDir, "tree")
 
-def genMetadata(snipDir: Path):
-	genFile(
-		snipDir, "metadata.json",
-		lambda f: dump({"aliases": [""]}, f, indent=4, sort_keys=True))
+def genMetadata(snipDir: Path, templateDir: Path):
+	def fromTemplate(f: IO):
+		with fopen(templateDir / "metadata.template.json", "r") as t:
+			f.write(t.read())
+
+	genFile(snipDir, "metadata.json", fromTemplate, False)
 
 def genSnipReadme(snipDir: Path):
 	genFile(
 		snipDir, "README.md",
 		lambda f: f.write(f"# {snipDir.name}{NL}"))
-
-def initSnipDirAndProgNameFromArgs():
-	complete, nameOrPath = args()
-	src = srcDir()
-
-	if complete:
-		snip = snipDirFromPath(nameOrPath, src)
-		progName = camelCase(snip.name.split())
-	else:
-		snipNameSplit = nameOrPath.split()
-		snip = snipDir(capitalize(snipNameSplit), src)
-		progName = camelCase(snipNameSplit)
-		safeMkdir(snip)
-	return alnumOnly(progName), snip, src
 
 def mdShort(ext: str):
 	try:
@@ -121,6 +112,19 @@ NL = "\n"
 def printGenSuccess(d: Path, itemName: str, quoted: bool = False):
 	dirName = f"\"{d.name}\"" if quoted else d.name
 	print(f"Generated {itemName} for {dirName}.")
+
+def progNameAndSnipDirFromArgs(src: Path):
+	complete, nameOrPath = args()
+
+	if complete:
+		snip = snipDirFromPath(nameOrPath, src)
+		progName = camelCase(snip.name.split())
+	else:
+		snipNameSplit = nameOrPath.split()
+		snip = snipDir(capitalize(snipNameSplit), src)
+		progName = camelCase(snipNameSplit)
+		safeMkdir(snip)
+	return alnumOnly(progName), snip
 
 def safeMkdir(p: Path):
 	try:
@@ -169,12 +173,14 @@ def tryCall(f, *args):
 
 def main():
 	try:
-		progName, snip, src = initSnipDirAndProgNameFromArgs()
+		src = srcDir()
+		progName, snip = progNameAndSnipDirFromArgs(src)
+		templates = templateDir(src)
 		tryCall(genFile, snip, "expOut.txt")
-		tryCall(genMetadata, snip)
+		tryCall(genMetadata, snip, templates)
 		tryCall(genSnipReadme, snip)
 
-		for t in templateFiles(templateDir(src)):
+		for t in templateFiles(templates):
 			tryCall(genLangTree, progName, snip, t)
 
 	except AppError as e:
